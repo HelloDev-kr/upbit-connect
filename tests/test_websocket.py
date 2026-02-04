@@ -21,13 +21,16 @@ import websockets.exceptions
 
 from upbit_connect.exceptions import UpbitError
 from upbit_connect.models.exchange import Asset, Order
-from upbit_connect.models.quotation import (
+from upbit_connect.models.websocket import (
     AskBid,
     ChangeType,
-    Orderbook,
-    OrderbookUnit,
-    Ticker,
-    Trade,
+    MarketState,
+    MarketWarning,
+    StreamType,
+    WsOrderbook,
+    WsOrderbookUnit,
+    WsTicker,
+    WsTrade,
 )
 from upbit_connect.websocket.client import UpbitWebSocket
 
@@ -307,16 +310,10 @@ class TestMessageDispatch:
     """Tests for message type dispatch and parsing."""
 
     def _create_ticker_data(self) -> dict[str, Any]:
-        """Create sample ticker data with proper Pydantic-compatible types."""
+        """Create sample ticker data for WebSocket with proper Pydantic-compatible types."""
         return {
             "type": "ticker",
             "code": "KRW-BTC",
-            "market": "KRW-BTC",
-            "trade_date": "20260127",
-            "trade_time": "120000",
-            "trade_date_kst": "20260127",
-            "trade_time_kst": "210000",
-            "trade_timestamp": datetime(2026, 1, 27, 12, 0, 0),
             "opening_price": Decimal("50000000"),
             "high_price": Decimal("51000000"),
             "low_price": Decimal("49000000"),
@@ -324,55 +321,73 @@ class TestMessageDispatch:
             "prev_closing_price": Decimal("50000000"),
             "change": ChangeType.RISE,
             "change_price": Decimal("500000"),
-            "change_rate": Decimal("0.01"),
             "signed_change_price": Decimal("500000"),
+            "change_rate": Decimal("0.01"),
             "signed_change_rate": Decimal("0.01"),
+            "ask_bid": AskBid.BID,
             "trade_volume": Decimal("0.001"),
-            "acc_trade_price": Decimal("1000000000"),
-            "acc_trade_price_24h": Decimal("2000000000"),
             "acc_trade_volume": Decimal("20"),
             "acc_trade_volume_24h": Decimal("40"),
+            "acc_trade_price": Decimal("1000000000"),
+            "acc_trade_price_24h": Decimal("2000000000"),
+            "acc_ask_volume": Decimal("10"),
+            "acc_bid_volume": Decimal("10"),
+            "trade_date": "20260127",
+            "trade_time": "120000",
+            "trade_timestamp": datetime(2026, 1, 27, 12, 0, 0),
             "highest_52_week_price": Decimal("70000000"),
             "highest_52_week_date": "2025-12-01",
             "lowest_52_week_price": Decimal("30000000"),
             "lowest_52_week_date": "2025-06-01",
+            "market_state": MarketState.ACTIVE,
+            "is_trading_suspended": False,
+            "delisting_date": None,
+            "market_warning": MarketWarning.NONE,
             "timestamp": datetime(2026, 1, 27, 12, 0, 0),
+            "stream_type": StreamType.REALTIME,
         }
 
     def _create_orderbook_data(self) -> dict[str, Any]:
-        """Create sample orderbook data with proper Pydantic-compatible types."""
+        """Create sample orderbook data for WebSocket with proper Pydantic-compatible types."""
         return {
             "type": "orderbook",
             "code": "KRW-BTC",
-            "market": "KRW-BTC",
             "timestamp": datetime(2026, 1, 27, 12, 0, 0),
             "total_ask_size": Decimal("10.5"),
             "total_bid_size": Decimal("15.2"),
             "orderbook_units": [
-                OrderbookUnit(
-                    ask_price=Decimal("50100000"),
-                    bid_price=Decimal("50000000"),
-                    ask_size=Decimal("1.5"),
-                    bid_size=Decimal("2.0"),
-                )
+                {
+                    "ask_price": Decimal("50100000"),
+                    "bid_price": Decimal("50000000"),
+                    "ask_size": Decimal("1.5"),
+                    "bid_size": Decimal("2.0"),
+                }
             ],
+            "stream_type": StreamType.REALTIME,
+            "level": 0,
         }
 
     def _create_trade_data(self) -> dict[str, Any]:
-        """Create sample trade data with proper Pydantic-compatible types."""
+        """Create sample trade data for WebSocket with proper Pydantic-compatible types."""
         return {
             "type": "trade",
             "code": "KRW-BTC",
-            "market": "KRW-BTC",
-            "trade_date_utc": "2026-01-27",
-            "trade_time_utc": "12:00:00",
             "timestamp": datetime(2026, 1, 27, 12, 0, 0),
+            "trade_date": "2026-01-27",
+            "trade_time": "12:00:00",
+            "trade_timestamp": datetime(2026, 1, 27, 12, 0, 0),
             "trade_price": Decimal("50500000"),
             "trade_volume": Decimal("0.001"),
-            "prev_closing_price": Decimal("50000000"),
-            "change_price": Decimal("500000"),
             "ask_bid": AskBid.BID,
+            "prev_closing_price": Decimal("50000000"),
+            "change": ChangeType.RISE,
+            "change_price": Decimal("500000"),
             "sequential_id": 1234567890,
+            "best_ask_price": Decimal("50600000"),
+            "best_ask_size": Decimal("1.5"),
+            "best_bid_price": Decimal("50500000"),
+            "best_bid_size": Decimal("2.0"),
+            "stream_type": StreamType.REALTIME,
         }
 
     def _create_order_data(self) -> dict[str, Any]:
@@ -409,36 +424,36 @@ class TestMessageDispatch:
         }
 
     def test_parse_ticker_message(self) -> None:
-        """Test parsing ticker message returns Ticker model."""
+        """Test parsing ticker message returns WsTicker model."""
         ws = UpbitWebSocket()
         data = self._create_ticker_data()
 
         result = ws._parse_message(data)
 
-        assert isinstance(result, Ticker)
-        assert result.market == "KRW-BTC"
+        assert isinstance(result, WsTicker)
+        assert result.code == "KRW-BTC"
         assert result.trade_price == Decimal("50500000")
 
     def test_parse_orderbook_message(self) -> None:
-        """Test parsing orderbook message returns Orderbook model."""
+        """Test parsing orderbook message returns WsOrderbook model."""
         ws = UpbitWebSocket()
         data = self._create_orderbook_data()
 
         result = ws._parse_message(data)
 
-        assert isinstance(result, Orderbook)
-        assert result.market == "KRW-BTC"
+        assert isinstance(result, WsOrderbook)
+        assert result.code == "KRW-BTC"
         assert len(result.orderbook_units) == 1
 
     def test_parse_trade_message(self) -> None:
-        """Test parsing trade message returns Trade model."""
+        """Test parsing trade message returns WsTrade model."""
         ws = UpbitWebSocket()
         data = self._create_trade_data()
 
         result = ws._parse_message(data)
 
-        assert isinstance(result, Trade)
-        assert result.market == "KRW-BTC"
+        assert isinstance(result, WsTrade)
+        assert result.code == "KRW-BTC"
         assert result.trade_volume == Decimal("0.001")
 
     def test_parse_my_order_message(self) -> None:

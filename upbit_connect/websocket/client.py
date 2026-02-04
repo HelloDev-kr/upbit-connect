@@ -22,10 +22,10 @@ from websockets.asyncio.client import ClientConnection
 from upbit_connect.auth import generate_jwt_token
 from upbit_connect.exceptions import UpbitError
 from upbit_connect.models.exchange import Asset, Order
-from upbit_connect.models.quotation import Orderbook, Ticker, Trade
+from upbit_connect.models.websocket import WsOrderbook, WsTicker, WsTrade
 
 MessageCallback = Callable[
-    [Ticker | Orderbook | Trade | Order | Asset | dict[str, Any]], Awaitable[None]
+    [WsTicker | WsOrderbook | WsTrade | Order | Asset | dict[str, Any]], Awaitable[None]
 ]
 
 
@@ -174,7 +174,7 @@ class UpbitWebSocket:
 
     def _parse_message(
         self, data: dict[str, Any]
-    ) -> Ticker | Orderbook | Trade | Order | Asset | dict[str, Any]:
+    ) -> WsTicker | WsOrderbook | WsTrade | Order | Asset | dict[str, Any]:
         """Parse JSON message to appropriate Pydantic model.
 
         Args:
@@ -186,11 +186,11 @@ class UpbitWebSocket:
         msg_type = data.get("type")
 
         if msg_type == "ticker":
-            return Ticker(**data)
+            return WsTicker(**data)
         elif msg_type == "orderbook":
-            return Orderbook(**data)
+            return WsOrderbook(**data)
         elif msg_type == "trade":
-            return Trade(**data)
+            return WsTrade(**data)
         elif msg_type == "myOrder":
             return Order(**data)
         elif msg_type == "myAsset":

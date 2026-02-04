@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
@@ -26,6 +26,13 @@ jobs:
 
     - name: Build binary wheel and source tarball
       run: python -m build
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: dist/*
+        generate_release_notes: true
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1

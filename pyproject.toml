@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "upbit-connect"
-version = "1.0.0"
+version = "1.0.1"
 description = "A complete Upbit Python library for REST API and WebSocket"
 readme = "README.md"
 authors = [
